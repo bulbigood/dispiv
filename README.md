@@ -1,7 +1,19 @@
 # DISPIV: Spec-Driven AI Engineering Pipeline
 
-**Статус:** RFC v1.0 (Request for Comments)  
+**Статус:** RFC v0.1 (Request for Comments)  
 **Суть в одном предложении:** Превратить дорогое стратегическое мышление (сильный ИИ) в детерминированный артефакт (спецификация + DAG-план), который дешевый тактический исполнитель (слабый ИИ) реализует механически, а человек верифицирует через тесты и CI.
+
+---
+
+## Сравнение DISPIV и аналогов
+
+| Критерий | DISPIV | OpenSpec |
+|:---------|:------:|:--------:|
+| Spec как единый связный документ | ✅ | ❌ (фрагменты-дельты) |
+| Гранулярность плана под слабую LLM | ✅ (DAG + YAML) | ❌ (задания для архитектора) |
+| Экономия токенов LLM | ✅ (Spec-First) | ⚠️ (нет ограничений на чтение) |
+| Compile-safe Expand-Migrate-Contract | ✅ (инвариант) | ❌ (нарушает) |
+| Человекочитаемость | ✅ | ⚠️ (только для LLM) |
 
 ---
 
@@ -11,18 +23,11 @@ DISPIV решает главную проблему современных AI-а
 
 ```mermaid
 flowchart LR
-    D[Demand] --> I[Idea] --> S[Spec] --> P[Plan] --> I[Implement] --> V[Verify]
+    D[Demand] ---> I[Idea] ---> S[Spec] ---> P[Plan] ---> B[Implement] ---> V[Verify]
     
     V -.->|Блокер / Дрейф| P
     P -.->|Противоречие| S
     S -.->|Нереализуемо| I
-    
-    classDef strong fill:#ffe9e9,stroke:#c33;
-    classDef weak fill:#e9f5ff,stroke:#36c;
-    classDef human fill:#eafbe7,stroke:#3a3;
-    class I,S,P strong
-    class I weak
-    class D,V human
 ```
 
 **Два незыблемых инварианта:**
