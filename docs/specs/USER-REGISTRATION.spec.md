@@ -1,38 +1,73 @@
 ---
 module: USER-REGISTRATION
-version: "1.1.0"
 status: Active
 idea_ref: "/docs/adrs/005-async-email-verification.md"
 dependencies:
-  - "EMAIL-GATEWAY.spec.md"
+  - "EMAIL-GATEWAY.spec.md" # Для консьюмера (историческая транзитивность)
 tags: ["auth", "core"]
 ---
 
-# User Registration
+# Спецификация: User Registration
 
-> **Scope**: Регистрация новых пользователей, валидация данных, верификация email.
-> **Вне scope**: Аутентификация (Login), сброс пароля, OAuth.
-> **Целевая аудитория**: Человек, Strong AI (Plan/Verify), Weak AI (Implement).
+## 1. Область видимости (Scope)
 
----
+Модуль `UserRegistrationService` **отвечает за**:
+- Прием и строгую валидацию регистрационных данных.
+- Создание неактивной учетной записи.
+- Отправку асинхронного события для email-верификации.
+- Подтверждение почты через одноразовый токен.
 
-## 1. Назначение и границы (Scope)
-
-`UserRegistrationService` отвечает за:
-- Прием и валидацию регистрационных данных.
-- Создание неактивной учетной записи и генерацию токена.
-- Подтверждение email по токену.
-
-**Не отвечает** за:
-- Выдачу JWT-токенов (это `AuthService`).
-- Физическую отправку писем (делегировано `EmailGateway`).
+**Не входит в scope** (покрывается другими спецификациями):
+- Аутентификация / Выдача JWT-токенов (`AuthService`).
+- Восстановление или смена пароля.
+- Физическая отправка писем по SMTP (`NotificationWorker`).
 
 ---
 
-## 2. Контракты и Модели Данных (Contracts)
+## 2. Бизнес-правила и Инварианты (Invariants)
 
-### 2.1. Входящие команды и Результаты
+*Это ключевые правила модуля. Они должны проверяться в изолированных Unit-тестах.*
 
+| ID | Суть правила | Формальная логика |
+|:---|:---|:---|
+| **INV-01** | **Уникальность Email** | Проверяется строго без учета регистра: `email.toLowerCase()`. |
+| **INV-02** | **Безопасность пароля** | Не менее 8 символов, минимум одна цифра. Хранится только хэш (BCrypt, cost=12). |
+| **INV-03** | **Атомарность (Outbox)** | Создание записи `User` и события `UserRegisteredEvent` происходит в одной БД-транзакции. |
+| **INV-04** | **Жизненный цикл токена**| Токен имеет TTL $24 \text{ часа}$. После одного успешного применения токен уничтожается. |
+
+---
+
+## 3. Требования к хранению (Storage)
+
+| Сущность | Хранилище | Ограничения (Constraints) |
+|:---|:---|:---|
+| `User` | PostgreSQL | PK: `id` (UUID). UNIQUE: `email_lower`. Поле `is_verified` (default *false*). |
+| `VerificationToken` | Redis | Key: `reg_tkn:{token}`. Value: `userId`. |
+
+> **Для AI (Implement Phase):** Redis используется для токенов верификации из-за нативного TTL. Вызов Redis должен быть обернут в Circuit Breaker — при падении кэша регистрация отклоняется.
+
+---
+
+## 4. Тестовые сценарии (Test Sketches)
+
+*Сокращенный маппинг для генерации тестов на этапе Plan. Формат: `[Задействованные инварианты] Входные условия ➔ Результат и Side Effects`*.
+
+### Команда: `registerUser()`
+* `[INV-01, 03]` Валидные данные ➔ Создан `User` (по умолчанию `is_verified=false`) **+** Сохранен токен в Redis **+** Опубликовано событие `UserRegisteredEvent` (атомарно).
+* `[INV-01]` Дубликат Email ➔ Выброс `DuplicateEmailException`. Никаких событий не публикуется.
+* `[INV-02]` Пароль < 8 символов ➔ Выброс `ValidationException(WEAK_PASSWORD)`. БД игнорируется.
+
+### Команда: `verifyEmail()`
+* `[INV-04]` Валидный токен ➔ `user.is_verified = true` **+** Токен удален из Redis.
+* `[INV-04]` Токен не найден (или истек TTL) ➔ Выброс `ExpiredTokenException`.
+* `[-]` Пользователь уже верифицирован ➔ Идемпотентный ответ `200 OK` без изменения БД.
+
+---
+
+<details>
+<summary><b>5. Технические Контракты и DTO (Развернуть)</b></summary>
+
+### Входящие команды (Inputs)
 ```java
 public record RegisterUserCommand(
     String email, 
@@ -40,63 +75,4 @@ public record RegisterUserCommand(
     String displayName
 ) {}
 
-public record RegistrationResult(
-    UUID userId, 
-    String verificationToken
-) {}
-
 public record VerifyEmailCommand(String token) {}
-```
-
-### 2.2. Исключения (Domain Exceptions)
-
-```java
-public class DuplicateEmailException extends DomainException { ... }
-public class ValidationException extends DomainException {
-    private final ErrorCode code; // WEAK_PASSWORD, INVALID_EMAIL
-}
-public class ExpiredTokenException extends DomainException { ... }
-```
-
----
-
-## 3. Инварианты и Бизнес-правила (Invariants)
-
-| ID | Правило | Формальное описание / Логика |
-|:---|:---|:---|
-| **INV-01** | **Уникальность Email** | Email проверяется без учета регистра: `email.toLowerCase()`. |
-| **INV-02** | **Требования к паролю** | Минимум 8 символов, хотя бы одна цифра. Хранится только BCrypt-хэш (cost=12). |
-| **INV-03** | **Атомарность регистрации** | Запись `User` и `VerificationToken` создаются в одной транзакции. |
-| **INV-04** | **Токен одноразовый** | После успешной верификации токен удаляется. Повторный вызов с тем же токеном возвращает ошибку `InvalidToken`. |
-
----
-
-## 4. Требования к хранению (Storage)
-
-| Сущность | Хранилище | Constraints & Indexes | Специфика |
-|:---|:---|:---|:---|
-| `User` | PostgreSQL | PK: `id` (UUID). UNIQUE: `email_lower`. | Поле `is_verified` (boolean, default false). |
-| `VerificationToken` | Redis | Key: `reg_tkn:{token}` | TTL: строго 24 часа. Value: `userId`. |
-
-*Примечание для Plan-агента: Redis используется для токенов из-за встроенного TTL и высокой скорости чтения. При недоступности Redis регистрация блокируется (Circuit Breaker).*
-
----
-
-## 5. Тестовые сценарии (Test Sketches)
-
-### `registerUser(RegisterUserCommand cmd)`
-* **happy path** `[INV-01, INV-03]`: email уникальный, пароль валидный → создается `User` (is_verified=false), генерируется токен, сохраняется в Redis (TTL 24h). **[SideEffect]**: синхронно вызывается `EmailGateway.send()`.
-* **duplicate email** `[INV-01]`: email уже есть в БД → `DuplicateEmailException`. **[SideEffect]**: `EmailGateway` НЕ вызывается.
-* **weak password** `[INV-02]`: пароль < 8 символов → `ValidationException(WEAK_PASSWORD)`. БД и Redis не затрагиваются.
-
-### `verifyEmail(VerifyEmailCommand cmd)`
-* **happy path** `[INV-04]`: токен найден в Redis → `user.is_verified = true`, токен удаляется из Redis.
-* **expired token** `[INV-04]`: токен не найден в Redis (истек TTL) → `ExpiredTokenException`.
-* **already verified**: если пользователь уже верифицирован → идемпотентный ответ `200 OK` (без исключения).
-
----
-
-## 6. Миграция и Версионирование
-
-- **Обратная совместимость**: Добавление новых полей в `RegisterUserCommand` (например, `phoneNumber`) должно быть опциональным (`Optional<String>`).
-- **Expand-Migrate-Contract**: Если потребуется изменить алгоритм хэширования паролей с BCrypt на Argon2, это потребует трехфазного плана (поддержка обоих хэшей на чтение -> миграция данных -> удаление BCrypt).
