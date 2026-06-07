@@ -140,7 +140,7 @@ graph TD
 ```
 /docs/specs/
   ├── index.md                          # Реестр всех активных спек (таблица: имя, версия, статус, краткое описание, owner)
-  ├── USER-MANAGEMENT.spec.md           # Текущая активная спека (версия в YAML: v1.0)
+  ├── USER-REGISTRATION.spec.md           # Текущая активная спека (версия в YAML: v1.0)
   ├── NOTIFICATION.spec.md              # Текущая активная спека (версия в YAML: v2.1)
   └── CATALOG.spec.md                   # Текущая активная спека (версия в YAML: v1.3)
 ```
