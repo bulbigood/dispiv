@@ -2,10 +2,11 @@
 id: 005
 title: "ADR-005: Асинхронная верификация Email при регистрации"
 status: Accepted
-created: 2026-06-07
-author: anthropic/claude-sonnet-4.6
+date: 2026-06-07
 deciders: ["@alice", "@bob"]
-related_specs: ["USER-REGISTRATION.spec.md"]
+related_specs: 
+  - "USER-REGISTRATION.spec.md"
+  - "NOTIFICATION-WORKER.spec.md"
 tags: ["messaging", "kafka", "user-experience", "resilience"]
 ---
 

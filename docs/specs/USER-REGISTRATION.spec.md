@@ -1,14 +1,19 @@
 ---
 module: USER-REGISTRATION
-version: 1
-created: 2026-06-07
-author: anthropic/claude-sonnet-4.6
+version: "1.1.0"
 status: Active
 owner: "@alice"
 idea_ref: "/docs/adrs/005-async-email-verification.md"
 dependencies:
   - "EMAIL-GATEWAY.spec.md"
 tags: ["auth", "core"]
+changelog:
+  - version: "1.1.0"
+    date: 2026-06-07
+    changes: "Переход на асинхронную отправку писем через Transactional Outbox (см. ADR-005)."
+  - version: "1.0.0"
+    date: 2026-05-10
+    changes: "Первоначальная версия с синхронной отправкой."
 ---
 
 # User Registration — Спецификация v1.0
