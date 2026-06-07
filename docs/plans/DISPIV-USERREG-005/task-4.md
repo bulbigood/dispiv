@@ -1,11 +1,8 @@
 ---
-task_id: t3_service_refactor
-plan_id: DISPIV-USERREG-005
-emc_phase: migrate
-depends_on: [t1_outbox_schema, t2_outbox_publisher]
-breaks_compilation: true
-spec_ref: docs/specs/USER-REGISTRATION.spec.md
-invariants: ["INV-03"]
+module: USER-REGISTRATION
+status: Active
+dependencies:
+  - "EMAIL-GATEWAY"
 ---
 
 # Task 3: Service Refactor (Migrate to Outbox)

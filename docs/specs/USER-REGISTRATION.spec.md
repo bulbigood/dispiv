@@ -2,21 +2,13 @@
 module: USER-REGISTRATION
 version: "1.1.0"
 status: Active
-owner: "@alice"
 idea_ref: "/docs/adrs/005-async-email-verification.md"
 dependencies:
   - "EMAIL-GATEWAY.spec.md"
 tags: ["auth", "core"]
-changelog:
-  - version: "1.1.0"
-    date: 2026-06-07
-    changes: "Переход на асинхронную отправку писем через Transactional Outbox (см. ADR-005)."
-  - version: "1.0.0"
-    date: 2026-05-10
-    changes: "Первоначальная версия с синхронной отправкой."
 ---
 
-# User Registration — Спецификация v1.0
+# User Registration
 
 > **Scope**: Регистрация новых пользователей, валидация данных, верификация email.
 > **Вне scope**: Аутентификация (Login), сброс пароля, OAuth.
@@ -93,13 +85,13 @@ public class ExpiredTokenException extends DomainException { ... }
 ## 5. Тестовые сценарии (Test Sketches)
 
 ### `registerUser(RegisterUserCommand cmd)`
-* **happy path** `[INV-01, INV-03]`: email уникальный, пароль валидный → создается `User` (is_verified=false), генерируется токен, сохраняется в Redis (TTL 24h). **[SideEffect]**: асинхронно вызывается `EmailGateway.send()`.
+* **happy path** `[INV-01, INV-03]`: email уникальный, пароль валидный → создается `User` (is_verified=false), генерируется токен, сохраняется в Redis (TTL 24h). **[SideEffect]**: синхронно вызывается `EmailGateway.send()`.
 * **duplicate email** `[INV-01]`: email уже есть в БД → `DuplicateEmailException`. **[SideEffect]**: `EmailGateway` НЕ вызывается.
 * **weak password** `[INV-02]`: пароль < 8 символов → `ValidationException(WEAK_PASSWORD)`. БД и Redis не затрагиваются.
 
 ### `verifyEmail(VerifyEmailCommand cmd)`
 * **happy path** `[INV-04]`: токен найден в Redis → `user.is_verified = true`, токен удаляется из Redis.
-* **expired token** `[INV-05]`: токен не найден в Redis (истек TTL) → `ExpiredTokenException`.
+* **expired token** `[INV-04]`: токен не найден в Redis (истек TTL) → `ExpiredTokenException`.
 * **already verified**: если пользователь уже верифицирован → идемпотентный ответ `200 OK` (без исключения).
 
 ---

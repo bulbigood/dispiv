@@ -1,7 +1,6 @@
 ---
 plan_id: DISPIV-USERREG-005
 version: "1.0.0"
-created: 2026-06-07
 specs:
   - id: USER-REGISTRATION
     path: docs/specs/USER-REGISTRATION.spec.md
