@@ -2,8 +2,7 @@
 id: "005"
 status: Accepted
 related_specs: 
-  - "USER-REGISTRATION.spec.md"
-  - "NOTIFICATION-WORKER.spec.md"
+  - "TEMPLATE.spec.md"
 tags: ["messaging", "kafka", "resilience"]
 ---
 
@@ -33,7 +32,7 @@ $$ T_{response} = T_{db\_commit} + T_{smtp\_handshake} + T_{email\_send} $$
 **Выбранный подход: Transactional Outbox + Kafka + Выделенный микросервис.**
 
 **Архитектурный концепт:**
-Сервис регистрации больше не знает о существовании `EmailGateway`. Вместо этого он генерирует доменное событие (содержащее `userId` и сгенерированный токен), которое гарантированно доставляется в Kafka. *Точные структуры DTO зафиксированы в `USER-REGISTRATION.spec.md`*.
+Сервис регистрации больше не знает о существовании `EmailGateway`. Вместо этого он генерирует доменное событие (содержащее `userId` и сгенерированный токен), которое гарантированно доставляется в Kafka. *Точные структуры DTO зафиксированы в `TEMPLATE.spec.md`*.
 
 **Топология системы:**
 1. `UserRegistrationService` пишет сущность `User` и запись в таблицу `outbox_events` **в одной транзакции** PostgreSQL.
