@@ -1,9 +1,8 @@
 ---
-plan_id: TEMPLATE-001
+id: USER-REGISTRATION-PLAN-001
 strategy: expand-migrate-contract
-adr_ref: "/docs/adrs/TEMPLATE.adr.md"
 specs:
-  - id: USER-REGISTRATION
+  - id: USER-REGISTRATION-SPEC
     path: /docs/specs/TEMPLATE.spec.md
 dag:
   - id: t1_db_schema
@@ -73,11 +72,4 @@ flowchart LR
 
     T3[t3: Publisher] --> T4[t4: Рефакторинг Сервиса ⚠️ Migrate]
     T4 --> T5[t5: Очистка легаси<br/>Contract]
-
-    style Group A fill:#1a331a,stroke:#4a7c23,stroke-width:2px
-    style T1 fill:#2d5016,stroke:#4a7c23
-    style T2 fill:#2d5016,stroke:#4a7c23
-    style T3 fill:#2d5016,stroke:#4a7c23
-    style T4 fill:#b8860b,stroke:#daa520
-    style T5 fill:#8b0000,stroke:#dc143c
 ```
