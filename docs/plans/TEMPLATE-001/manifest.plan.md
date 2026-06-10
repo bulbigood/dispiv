@@ -7,26 +7,55 @@ dag:
   - id: t1_db_schema
     file: task-1.md
     emc_phase: expand
+    spec_invariants: [INV-01,INV-02]
     depends_on: []
+    sandbox_policy:
+      allow_read:
+        - src/main/java/com/app/db/UserRegistrationService.java
+      allow_write:
+        - src/main/java/com/app/db/UserRegistrationService.java
   - id: t2_kafka_dtos
     file: task-2.md
     emc_phase: expand
+    spec_invariants: [INV-01,INV-02]
     depends_on: []
+    sandbox_policy:
+      allow_read:
+        - src/main/java/com/app/kafka/KafkaService.java
+      allow_write:
+        - src/main/java/com/app/kafka/KafkaService.java
   - id: t3_outbox_publisher
     file: task-3.md
     emc_phase: expand
+    spec_invariants: [INV-03,INV-04]
     depends_on: [t1_db_schema, t2_kafka_dtos]
+    sandbox_policy:
+      allow_read:
+        - src/main/java/com/app/service/UserPublisher.java
+      allow_write:
+        - src/main/java/com/app/service/UserPublisher.java
   - id: t4_service_refactor
     file: task-4.md
     emc_phase: migrate
-    breaks_compilation: true
+    spec_invariants: [INV-03]
     depends_on: [t3_outbox_publisher]
-    affected_files:
-      - src/.../service/UserRegistrationService.java
+    sandbox_policy:
+      allow_write:
+        - src/main/java/com/app/service/UserRegistrationService.java
+      allow_read:
+        - src/main/java/com/app/gateway/EmailGateway.java
+        - src/main/java/com/app/domain/OutboxEventPublisher.java
   - id: t5_cleanup
     file: task-5.md
     emc_phase: contract
     depends_on: [t4_service_refactor]
+    sandbox_policy:
+      allow_read:
+        - src/main/java/com/app/service/UserRegistrationService.java
+      allow_write:
+        - src/main/java/com/app/service/UserRegistrationService.java
+      allow_delete:
+        - src/main/java/com/app/gateway/EmailGateway.java
 ---
 
 # План реализации: Outbox Migration для User Registration
@@ -36,9 +65,6 @@ dag:
 > - 🤖 **Оркестратор**: Читает только YAML-заголовок (строит DAG и запускает агентов).
 > - 🧠 **Weak AI (Агенты)**: НЕ читают этот манифест. Им передается исключительно файл `task-X.md`.
 > - 👁️ **Человек**: Читает этот документ для апрува архитектурного перехода.
-
-⚠️ **Правило CI/CD для фазы Migrate (t4_service_refactor):**
-Задача `t4` имеет флаг `breaks_compilation: true`. Она намеренно переводит код во временно некомпилируемое состояние (старые тесты упадут из-за изменения зависимостей сервиса). Оркестратор **не должен** запускать CI-проверки (тесты) после `t4`. Управление безусловно передается задаче `t5` (Contract), которая чистит неактуальные импорты и восстанавливает Compile-Safe статус ветки.
 
 ---
 

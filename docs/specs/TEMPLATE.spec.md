@@ -47,7 +47,10 @@ _Это ключевые правила модуля. Они должны про
 | `User`              | PostgreSQL | PK: `id` (UUID). UNIQUE: `email_lower`. Поле `is_verified` (default _false_). |
 | `VerificationToken` | Redis      | Key: `reg_tkn:{token}`. Value: `userId`.                                      |
 
-> **Для AI (Implement Phase):** Redis используется для токенов верификации из-за нативного TTL. Вызов Redis должен быть обернут в Circuit Breaker — при падении кэша регистрация отклоняется.
+<details data-audience="implement-agent">
+<summary>Implement notes</summary>
+Redis обёрнут в Circuit Breaker. При падении — регистрация отклоняется.
+</details>
 
 ---
 
