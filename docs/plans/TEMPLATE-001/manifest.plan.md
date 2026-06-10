@@ -59,43 +59,45 @@ dag:
         - src/main/java/com/app/gateway/EmailGateway.java
 ---
 
-# План реализации: Outbox Migration для User Registration
+# Implementation Plan: Outbox Migration for User Registration
 
-> **Роли в пайплайне:**
+> **Pipeline Roles**
 >
-> - 🤖 **Оркестратор**: Читает только YAML-заголовок (строит DAG и запускает агентов).
-> - 🧠 **Weak AI (Агенты)**: НЕ читают этот манифест. Им передается исключительно файл `task-X.md`.
-> - 👁️ **Человек**: Читает этот документ для апрува архитектурного перехода.
+> * 🤖 **Orchestrator:** Reads only the YAML header to build the DAG and launch agents.
+> * 🧠 **Weak AI (Agents):** Do not read this manifest. They receive only their assigned `task-X.md` file.
+> * 👁️ **Human:** Reviews this document to approve the architectural migration.
 
 ---
 
 <details>
-<summary><b>Архитектурная дельта (Gap Analysis)</b></summary>
+<summary><b>Architectural Delta (Gap Analysis)</b></summary>
 
-| Зона ответственности | Целевое состояние (Spec)          | Текущее состояние               | Фаза (EMC) |
-| :------------------- | :-------------------------------- | :------------------------------ | :--------- |
-| **Схема БД**         | Добавлена таблица `outbox_events` | Только `users`                  | Expand     |
-| **События**          | DTO `UserRegisteredEvent`         | Отсутствует                     | Expand     |
-| **Интеграция**       | `OutboxEventPublisher`            | Отсутствует                     | Expand     |
-| **Бизнес-логика**    | Запись события в Outbox           | Синхронный вызов `EmailGateway` | Migrate    |
-| **Очистка**          | Прямая зависимость удалена        | Бин зависит от `EmailGateway`   | Contract   |
+| Responsibility Area | Target State (Spec)         | Current State                     | EMC Phase |
+| ------------------- | --------------------------- | --------------------------------- | --------- |
+| **Database Schema** | `outbox_events` table added | Only `users` table exists         | Expand    |
+| **Events**          | `UserRegisteredEvent` DTO   | Not implemented                   | Expand    |
+| **Integration**     | `OutboxEventPublisher`      | Not implemented                   | Expand    |
+| **Business Logic**  | Persist event into Outbox   | Synchronous `EmailGateway` call   | Migrate   |
+| **Cleanup**         | Direct dependency removed   | Service depends on `EmailGateway` | Contract  |
 
 </details>
 
 <details>
-<summary><b>Топология графа выполнения (Mermaid)</b></summary>
+<summary><b>Execution Graph Topology (Mermaid)</b></summary>
 
 ```mermaid
 flowchart LR
-    subgraph Group A [Параллельная фаза: Expand]
+    subgraph Group A [Parallel Phase: Expand]
         direction LR
-        T1[t1: Схема БД]
-        T2[t2: DTO События]
+        T1[t1: Database Schema]
+        T2[t2: Event DTOs]
     end
 
     T1 --> T3
     T2 --> T3
 
-    T3[t3: Publisher] --> T4[t4: Рефакторинг Сервиса ⚠️ Migrate]
-    T4 --> T5[t5: Очистка легаси<br/>Contract]
+    T3[t3: Publisher] --> T4[t4: Service Refactoring ⚠️ Migrate]
+    T4 --> T5[t5: Legacy Cleanup<br/>Contract]
 ```
+
+</details>

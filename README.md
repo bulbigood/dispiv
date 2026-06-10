@@ -1,12 +1,17 @@
+<p align="right">
+  <a href="./README.md">Русский</a> |
+  English
+</p>
+
 # DISPIV Engineering Pipeline
 
-Данный документ описывает **DISPIV** — методологию Spec-Driven Development, основанную на широком взаимодействии человека с ИИ агентами. Процесс спроектирован так, чтобы максимизировать качество архитектуры и скорость внедрения изменений, при этом минимизируя расходы на ИИ.
+This document describes **DISPIV** — a Spec-Driven Development methodology built around extensive collaboration between humans and AI agents. The process is designed to maximize architectural quality and implementation speed while minimizing AI-related costs.
 
-Основа методологии: жесткое разделение этапов, строгая изоляция контекста для минимизации "когнитивной нагрузки" на ИИ-модели и использование системы "единого источника истины" (Source of Truth) на базе Markdown-документов.
+The methodology is based on strict phase separation, rigorous context isolation to reduce AI cognitive load, and a Markdown-based "Single Source of Truth" documentation system.
 
-## Верхнеуровневый обзор пайплайна
+## High-Level Pipeline Overview
 
-Пайплайн состоит из 6 последовательных этапов, разделяющих зоны ответственности между Человеком, Сильным ИИ ($AI_{strong}$) и Слабым ИИ ($AI_{weak}$).
+The pipeline consists of six sequential phases that clearly separate responsibilities between the Human, Strong AI ($AI_{strong}$), and Weak AI ($AI_{weak}$).
 
 ```mermaid
 graph LR
@@ -17,70 +22,88 @@ graph LR
     5 --> 6[Verify]
 ```
 
-- **Demand (Человек):** Формулирование бизнес-проблемы или потребности.
-- **Idea (Человек + $AI_{strong}$):** Генерация концепций решения, проведение пре-мортем анализа и выбор единого вектора.
-- **Spec (Человек + $AI_{strong}$):** Пошаговая итеративная разработка строгой спецификации. Написание скетч-тестов.
-- **Plan ($AI_{strong}$):** Декомпозиция спецификации в гранулированный DAG-план по стратегии _Expand-Migrate-Contract_.
-- **Implement ($AI_{weak}$ / Оркестратор):** Параллельное или последовательное выполнение атомарных задач непосредственно в кодовой базе.
-- **Verify (Человек + Автоматика):** Финальная сборка, ручная проверка тестов и рантайм-валидация.
+* **Demand (Human):** Definition of a business problem or need.
+* **Idea (Human + $AI_{strong}$):** Generation of solution concepts, pre-mortem analysis, and selection of a single direction.
+* **Spec (Human + $AI_{strong}$):** Iterative development of a formal specification. Creation of test sketches.
+* **Plan ($AI_{strong}$):** Decomposition of the specification into a granular DAG plan using the Expand-Migrate-Contract strategy.
+* **Implement ($AI_{weak}$ / Orchestrator):** Parallel or sequential execution of atomic tasks directly within the codebase.
+* **Verify (Human + Automation):** Final assembly, manual test verification, and runtime validation.
 
 ---
 
 <details open>
-<summary><b>Подробное описание этапов пайплайна</b></summary>
+<summary><b>Detailed Pipeline Description</b></summary>
 
-### Этап 1: Demand (Спрос / Потребность)
+### Phase 1: Demand
 
-- **Ответственный:** Человек.
-- **Суть:** Фиксация проблемы в "сыром" виде. Технические решения на этом этапе не предлагаются.
-- **Артефакт:** Тикет с описанием проблемы.
+* **Owner:** Human.
+* **Purpose:** Capture the problem in its raw form. No technical solutions are proposed at this stage.
+* **Artifact:** Problem ticket.
 
-### Этап 2: Idea (Концептуализация)
+### Phase 2: Idea
 
-- **Ответственный:** Человек + $AI_{strong}$.
-- **Суть:** Мозговой штурм. Проводится pre-mortem анализ и другие техники. Выбирается одна оптимальная идея.
-- **Артефакт:** Документ архитектурного решения с суффиксом `.adr.md`.
+* **Owner:** Human + $AI_{strong}$.
+* **Purpose:** Brainstorming and solution exploration. Pre-mortem analysis and similar techniques are applied. A single optimal solution is selected.
+* **Artifact:** Architecture Decision Record (`.adr.md`).
 
-### Этап 3: Spec (Спецификация)
+### Phase 3: Spec
 
-- **Ответственный:** Человек + $AI_{strong}$.
-- **Суть:** Проектирование архитектуры и логики методом последовательного уточнения. Спецификация становится монолитным "источником истины".
-- **Test Sketches:** Человек обязан написать скетч-тесты на естественном языке. Они необходимы для следующих этапов. Также это необходимо для усвоения Человеком спецификации и покрытия самых опасных сценариев еще до начала следующего этапа.
-- **Разработка в Brownfield-проектах:** начинается не с полного реверс-инжиниринга всей базы, а точечно: спека пишется только для того модуля, который затрагивается инициативой.
-- **Масштабирование и декомпозиция (Split limits):** Если идея требует масштабных изменений, спецификация декомпозируется на несколько файлов для предотвращения потери контекста LLM (Attention Drop). Спецификацию необходимо дробить, если срабатывает хотя бы одна эвристика:
-  1. **Границы доменов:** Фича затрагивает разные слои с разным стеком.
-  2. **Объем спецификации:** Размер `*.spec.md` превышает порог $S \ge 500$ строк.
-  3. **Глубина пайплайна:** Прогнозируемое количество атомарных задач для реализации $N_{tasks} \ge 10$.
-- **Артефакт:** Файлы с суффиксом `.spec.md`.
+* **Owner:** Human + $AI_{strong}$.
 
-### Этап 4: Plan (Планирование)
+* **Purpose:** Architecture and logic design through progressive refinement. The specification becomes the authoritative source of truth.
 
-- **Ответственный:** $AI_{strong}$.
-- **Суть:** Трансляция одной спецификации в структурированный граф задач (DAG).
-- **Стратегия Expand-Migrate-Contract (EMC):** Изменения разбиваются на безопасные фазы добавления, миграции и удаления, гарантируя Compile-Safe Ordering.
-- **Артефакт:** `manifest.plan.md` и набор атомарных инструкций `task-X.md`.
+* **Test Sketches:** The human author must write natural-language test sketches. These are required for downstream phases and help ensure understanding of the specification while covering the most critical scenarios before implementation begins.
 
-### Этап 5: Implement (Реализация)
+* **Brownfield Development:** Work starts with the affected module rather than reverse-engineering the entire codebase. Specifications are written only for components impacted by the initiative.
 
-- **Ответственный:** $AI_{weak}$ / Автономный оркестратор агентов.
-- **Суть:** Атомарные задачи из DAG поступают на исполнение агентам. Огромная экономия токенов при использовании чистого контекстного окна для выполнения каждой задачи и жесткой изоляции файлов, разрешенных к чтению/изменению.
-  Оркестратор может быть реализован на базе стандартных пайплайнов CI/CD (например, GitHub Actions matrix или GitLab CI DAGs) или через LangGraph. Написание кастомного движка не требуется.
-- **Обработка нештатных ситуаций:** Если $AI_{weak}$ находит неочевидный edge-case, он обязан прервать задачу и сгенерировать артефакт `blocker.md` для эскалации.
-- **Артефакт:** Измененный рабочий каталог или Pull Request.
+* **Scaling and Decomposition (Split Limits):** If the initiative requires large-scale changes, the specification must be decomposed into multiple files to prevent LLM context degradation (Attention Drop). Splitting is recommended when at least one of the following heuristics applies:
 
-### Этап 6: Verify (Верификация)
+  1. **Domain Boundaries:** The feature affects multiple layers with different technology stacks.
+  2. **Specification Size:** A `*.spec.md` exceeds approximately $S \ge 500$ lines.
+  3. **Pipeline Depth:** The expected implementation requires $N_{tasks} \ge 10$ atomic tasks.
 
-- **Ответственный:** Автоматика (CI/CD) + Человек.
-- **Суть:** Финальный барьер качества, Spec-Drift анализ через генерацию Markdown-отчета в CI.
-- **Артефакт:** принятый Pull Request.
+* **Artifact:** `*.spec.md` files.
+
+### Phase 4: Plan
+
+* **Owner:** $AI_{strong}$.
+
+* **Purpose:** Translate a specification into a structured DAG of tasks.
+
+* **Expand-Migrate-Contract (EMC):** Changes are divided into safe expansion, migration, and contraction phases, guaranteeing Compile-Safe Ordering.
+
+* **Artifact:** `manifest.plan.md` and a set of atomic task instructions (`task-X.md`).
+
+### Phase 5: Implement
+
+* **Owner:** $AI_{weak}$ / Autonomous Agent Orchestrator.
+
+* **Purpose:** Atomic DAG tasks are executed by agents. Significant token savings are achieved through clean context windows and strict isolation of accessible files.
+
+  The orchestrator may be implemented using standard CI/CD systems (e.g., GitHub Actions Matrix, GitLab CI DAGs) or LangGraph. A custom execution engine is not required.
+
+* **Exception Handling:** If $AI_{weak}$ encounters a non-trivial edge case, it must stop execution and generate a `blocker.md` artifact for escalation.
+
+* **Artifact:** Modified working directory or Pull Request.
+
+### Phase 6: Verify
+
+* **Owner:** Automation (CI/CD) + Human.
+
+* **Purpose:** Final quality gate, including Spec-Drift analysis and Markdown report generation in CI.
+
+* **Artifact:** Accepted Pull Request.
+
 </details>
 
 ---
 
 <details open>
-<summary><b>Механизм обработки блокеров (Feedback Loops)</b></summary>
+<summary><b>Blocker Handling and Feedback Loops</b></summary>
 
-Пайплайн предусматривает явные маршруты отката. ИИ агенты должны быть способны обнаружить блокер и при необходимости откатиться назад. В пайплайн заложен **механизм "Circuit Breaker"**: если количество попыток автоматического исправления $N \ge 3$, задача жестко блокируется и перенаправляется человеку и $AI_{strong}$.
+The pipeline explicitly supports rollback and escalation paths. AI agents must be capable of identifying blockers and returning to earlier stages when necessary.
+
+A built-in **Circuit Breaker** mechanism is used: if the number of automated recovery attempts reaches $N \ge 3$, the task is forcefully blocked and escalated to the Human and $AI_{strong}$.
 
 ```mermaid
 graph TD
@@ -90,127 +113,157 @@ graph TD
     Pl --> Impl[Implement]
     Impl --> Ver[Verify]
 
-    Ver -. "Ошибка / Spec-Drift" .-> Impl
-    Ver -. "Критический баг архитектуры" .-> Sp
-    Impl -. "blocker.md / Лимит попыток" .-> Pl
-    Pl -. "Обнаружена дыра в логике" .-> Sp
-    Sp -. "Пре-мортем не учёл ограничение" .-> Id
+    Ver -. "Failure / Spec Drift" .-> Impl
+    Ver -. "Critical Architectural Bug" .-> Sp
+    Impl -. "blocker.md / Retry Limit" .-> Pl
+    Pl -. "Logic Gap Discovered" .-> Sp
+    Sp -. "Pre-Mortem Missed Constraint" .-> Id
 ```
 
-- **Из Verify в Implement:** Падение тестов или срабатывание Spec-Drift. Возвращается лог.
-- **Из Verify в Spec:** Обнаружение принципиальных архитектурных ошибок.
-- **Из Implement в Plan:** Генерация `blocker.md` агентом (если задача неотделима) или срабатывание Circuit Breaker.
-- **Из Plan в Spec:** Выявление логического тупика при написании тестовых набросков.
+* **Verify → Implement:** Failed tests or detected Spec Drift.
+* **Verify → Spec:** Fundamental architectural issues discovered.
+* **Implement → Plan:** `blocker.md` generated or Circuit Breaker activated.
+* **Plan → Spec:** Logical dead-end detected during planning.
+* **Spec → Idea:** Previously unknown constraints invalidate assumptions.
+
 </details>
 
 ---
 
 <details open>
-<summary><b>Контекстно-изолированная архитектура документации</b></summary>
+<summary><b>Context-Isolated Documentation Architecture</b></summary>
 
-Вся документация хранится в репозитории с жестким разделением форматов для экономии токенов (Git версионирование). **Cross-Repo спецификации** (если микросервисы лежат в разных репозиториях, но общаются друг с другом) выносятся в отдельный "Shared Contracts Repo" или Git Submodule, содержащий только `.spec.md` и Protobuf/OpenAPI контракты.
+All documentation is stored in the repository with strict format separation to reduce token consumption and improve versioning efficiency.
 
-Документация и инструкции жестко разделены на уровень **Бизнес/Архитектура** (папка `/docs/`) и уровень **Инструментарий** (скрытая папка `.dispiv/`). Такое разделение предотвращает засорение контекста ИИ-агентов.
+**Cross-repository specifications** (for microservices residing in separate repositories) should be extracted into a dedicated Shared Contracts Repository or Git Submodule containing only `.spec.md` files and Protobuf/OpenAPI contracts.
 
-### А. Уровень продукта и архитектуры (`/docs/`)
+Documentation is separated into two layers:
+
+* **Business & Architecture** (`/docs/`)
+* **Tooling & Agent Configuration** (`.dispiv/`)
+
+This separation prevents unnecessary context pollution for AI agents.
+
+### A. Product and Architecture Layer (`/docs/`)
 
 #### 1. Specs (`/docs/specs/`)
 
-Это единственный Source of Truth для кодовой базы.
+The sole Source of Truth for the codebase.
 
-Каждый Spec-файл содержит:
+Each specification includes:
 
-- **YAML Frontmatter:** статус, связанные зависимости (`related_specs`).
-- **Scope / Out of Scope:** Явные границы модуля.
-- **Data Models & Inter-Service Contracts (Outbound):** Описание не только внутренних DTO, но и клиентских контрактов для внешних вызовов (таймауты, retry-политики).
-- **State Machines / Sequence Diagrams:** Mermaid-диаграммы.
-- **Configuration & Feature Flags:** Описание переменных окружения и констант, ограничивающих логику.
-- **Global Error Handling:** Раздел соответствия Domain Exceptions и внешних транспортных кодов (например, HTTP 400).
-- **Test Scenarios / Invariants:** Наброски бизнес-правил, которые нельзя нарушать.
+* YAML Frontmatter (status, dependencies, `related_specs`)
+* Scope / Out of Scope boundaries
+* Data Models & Inter-Service Contracts (including outbound integrations, retry policies, and timeouts)
+* State Machines / Sequence Diagrams
+* Configuration & Feature Flags
+* Global Error Handling mappings
+* Test Scenarios / Invariants
 
 #### 2. Plans (`/docs/plans/`)
 
-Инструкции для оркестратора (`manifest.plan.md`) и атомарные промпты для $AI_{weak}$ (`task-X.md`). Оптимизированы — не содержат копий статусов или фаз декомпозиции в самих задачах.
+Instructions for orchestrators (`manifest.plan.md`) and atomic prompts for $AI_{weak}$ (`task-X.md`).
 
-**Жизненный цикл плана с Git-тегированием:**
+**Plan Lifecycle with Git Tagging**
 
-1. План создается и выполняется агентами/человеком.
-2. При успешном Verify CI-сервер ставит Git-тег: `plan-completed/{PLAN-ID}`.
-3. Вся директория плана физически удаляется из файловой системы. Таким образом ветка остается чистой, но при необходимости Post-mortem анализа мы легко восстановим снепшот по тегу.
+1. The plan is created and executed.
+
+2. After successful verification, CI creates a Git tag:
+
+   `plan-completed/{PLAN-ID}`
+
+3. The plan directory is physically removed from the repository.
+
+This keeps branches clean while preserving recoverability through Git history for post-mortem analysis.
 
 #### 3. ADRs (`/docs/adrs/`)
 
-Исторический контекст и причины архитектурных решений, включая Пре-мортем отчёты.
+Historical context and rationale behind architectural decisions, including pre-mortem reports.
 
 ---
 
-### Б. Уровень настройки агентов (`.dispiv/`)
+### B. Agent Configuration Layer (`.dispiv/`)
 
-#### Глобальный контекст проекта (`.dispiv/styleguide.md`)
+#### Global Project Context (`.dispiv/styleguide.md`)
 
-Для решения проблемы "Utility Blindness" и скрытых зависимостей используется централизованный файл `styleguide.md` (или `context.md`), лежащий в корне репозитория (не в папке `/docs/`).
-Он автоматически инжектится во все промпты при вызове $AI_{weak}$. Файл содержит системные и общие конвенции фреймворка: "Всегда используй кастомный `@AppTransactional`", "Логируй через `Logbook`", запрещенные библиотеки и т.д.
+To address utility blindness and hidden dependencies, a centralized `styleguide.md` (or `context.md`) file is maintained at the repository root.
+
+This file is automatically injected into every $AI_{weak}$ prompt and contains framework-wide conventions such as:
+
+* Always use `@AppTransactional`
+* Log through `Logbook`
+* Approved and prohibited libraries
+* Shared coding standards
 
 </details>
 
 ---
 
 <details>
-<summary><b>Изоляция доступа (по этапам)</b></summary>
+<summary><b>Access Isolation by Phase</b></summary>
 
-Изоляция доступа к документам дает увеличение скорости и экономию бюджета ИИ-модели.
+Document isolation improves execution speed and reduces AI costs.
 
-> Системный промпт: "Читай только файлы, указанные в контексте. Игнорируй резервные копии и файлы вне зоны ответственности текущей фазы."
+> System Prompt: "Read only files explicitly provided in the context. Ignore backups and files outside the current phase responsibility."
 
-- **Demand:** ИИ не задействован.
-- **Idea:** `*.demand.md` + `/docs/specs/index.md` + `/docs/adrs/index.md` + конкретные Specs.
-- **Spec:** `*.adr.md` + `/docs/specs/`. Код изолирован.
-- **Plan:** Измененные `*.spec.md` + абстрактные интерфейсы затрагиваемого кода + их реализации.
-- **Implement:** `task-X.md` (промпт задачи) + `.dispiv/styleguide.md` (глобальные правила) + выжимки Invariants из целевого `.spec.md` + целевые файлы исходного кода.
-- **Verify:** Все затронутые актуальные `.spec.md` + `git diff` всего пулл-реквеста.
+* **Demand:** No AI involvement.
+* **Idea:** `*.demand.md` + `/docs/specs/index.md` + `/docs/adrs/index.md` + relevant specs.
+* **Spec:** `*.adr.md` + `/docs/specs/`. Source code remains isolated.
+* **Plan:** Modified `*.spec.md` files + abstract interfaces + implementations.
+* **Implement:** `task-X.md` + `.dispiv/styleguide.md` + specification invariants + target source files.
+* **Verify:** All affected specifications + full Pull Request diff.
+
 </details>
 
 ---
 
 <details>
-<summary><b>Список актуальных проблем методологии</b></summary>
+<summary><b>Known Methodology Limitations</b></summary>
 
-1. **Деградация качества Plan-графа:** Современные LLM иногда ошибаются в топологической сортировке и выстраивании DAG, допуская скрытые циклические зависимости или нарушая последовательность безопасной компиляции (Compile-Safe Ordering). Нужен сильный $AI_{strong}$ и внимательный человек-апрувер этапа графостроения.
+### 1. Plan Graph Quality Degradation
 
-   _Рекомендуемое решение:_ Детерминированная валидация. Вынести математику графов из LLM в классический код. Обязать ИИ на этапе Plan выдавать манифест в строгом формате JSON/YAML (например, TaskID, DependsOn).
-   Перед переходом к фазе Implement, пайплайн запускает скрипт (Python/Node.js), который выполняет топологическую сортировку O(V+E) и проверяет DAG на наличие циклов.
-   Если скрипт находит цикл или потерянную зависимость, он автоматически возвращает ошибку с точным указанием проблемного узла.
+Modern LLMs may incorrectly perform topological sorting or DAG construction, creating hidden cycles or violating compile-safe ordering.
 
-2. **Когнитивная нагрузка ревьюера в Verify:** Человеку всё равно требуется глубоко понимать сгенерированный агентами код. Если тесты прошли, реализация в edge-кейсах всё еще может быть неоптимальной с точки зрения потребления памяти (OOM) и Big O Performance.
+**Recommended Solution:** Deterministic graph validation.
 
-   _Рекомендуемое решение:_ CodeQL / Static Analysis. Строго внедрить инструменты вроде SonarQube, Semgrep, CodeQL в CI пайплайн.
+Require the planning phase to output strict JSON/YAML manifests containing task identifiers and dependencies. Before implementation, a validation script performs topological sorting and cycle detection. Any issue immediately blocks execution and reports the problematic node.
 
-3. **Риск рассинхронизации (Human factor):** При экстренных "хотфиксах" разработчики склонны вносить изменения напрямую в код. Это мгновенно делает спецификации невалидными и ломает весь пайплайн на этапе контроля Spec-Drift. Дисциплина "Spec-first" должна поддерживаться жесткой политикой блокировок в CI/CD.
+### 2. Reviewer Cognitive Load During Verification
 
-   _Рекомендуемое решение:_ Emergency Lane "Reverse-Spec".
-   Создается отдельный процесс для Hotfix-веток.
-   Разработчик пишет код руками и пушит.
-   CI видит тег(префикс) hotfix/, пропускает билд, но асинхронно запускает Reverse-Engineering Агента.
-   Этот агент читает git diff хотфикса, самостоятельно находит затронутые \*.spec.md и открывает служебный Pull Request с обновленной документацией постфактум.
+Humans must still understand generated code. Passing tests does not guarantee acceptable memory consumption, scalability, or algorithmic complexity.
 
-4. **Риск галлюцинаций деструктивных действий (Destructive Actions):** На этапе реализации ИИ может ошибочно удалить жизненно важные файлы, спутав их с легаси при Contract-фазе. Рекомендуется AST-контроль (или Policy Engines), запрещающий агентам удалять файлы за пределами явно указанного манифестом Target-scope.
+**Recommended Solution:** Integrate CodeQL, Semgrep, SonarQube, and similar static analysis tools into CI.
 
-   _Рекомендуемое решение:_ Оркестратор-Цербер.
-   Внедрить жестко контролируемую песочницу файловой системы (например, через оборачивание файловых операций в кастомный тулинг агента).
-   В `manifest.plan.md` на этапе Plan, ИИ обязан сформировать FileSystem Allowlist для каждой задачи.
-   Оркестратор перехватывает попытки удаления. Если на этапе Implement, ИИ воркер пытается выполнить `rm /src/core/Auth.ts`, а этого файла нет в Allowlist'е задачи — операция мгновенно блокируется (Circuit Breaker) и прерывает пайплайн.
+### 3. Human-Induced Specification Drift
 
-5. **Изоляция файлов на этапе Spec:** "Код изолирован" работает при условии, что спецификации достаточно самодостаточны. Если автор Spec-а — человек, это нормально. Если ИИ пишет Spec и не видит существующих интерфейсов, есть риск написать spec, который конфликтует с реальной архитектурой. Стоит либо давать AI на Spec доступ к `*.d.ts` / публичным интерфейсам, либо осознанно принять, что Spec описывает желаемое, а Plan потом адаптирует.
+Emergency hotfixes often bypass specifications and directly modify code, invalidating the Source of Truth.
 
-   _Рекомендуемое решение:_ Генерация "Скелета кода".
-   Использовать легковесные утилиты (например, `Tree-sitter`, `ctags` или `tsc --declaration`) для автоматической генерации `.d.ts` файлов или единого Markdown-файла со всеми публичными сигнатурами проекта (без реализации).
-   Скелет проекта (назовем его `codebase-skeleton.md`) подается на вход ИИ на этапе Spec вместе с `*.adr.md`. Это даст модели понимание контрактов без избыточной когнитивной нагрузки.
+**Recommended Solution:** Reverse-Spec Emergency Lane.
 
-6. **Изоляция файлов на этапе Plan:** Кто определяет список "затрагиваемых" файлов до того, как Plan запущен? Если это делает человек вручную — окей. Если это должен определить сам Plan — возникает курица и яйцо. Стоит явно зафиксировать, что этот список формируется на этапе Idea или Spec как часть `*.adr.md`.
+Hotfix branches bypass standard specification-first flow. CI detects the `hotfix/` prefix and launches a reverse-engineering agent that analyzes the diff and automatically generates specification updates through a follow-up Pull Request.
 
-   _Рекомендуемое решение:_ Поисковый Скаут.
-   Выделяем микро-этап между Spec и Plan — Discovery Agent (или фаза RAG-поиска).
-   Скаут берет готовую `.spec.md` и имеет доступ к read-only поиску по кодовой базе (например, локальный embeddings search или просто grep-доступы).
-   Задача Скаута — выдать только один артефакт: список путей к файлам, которые нужно будет изменить, с кратким обоснованием. Этот список валидируется человеком (нажатием "Approve") или передается прямо в фазу Plan.
+### 4. Hallucinated Destructive Actions
+
+During implementation, AI may incorrectly delete critical files while performing contract-phase cleanup.
+
+**Recommended Solution:** Cerberus Orchestrator.
+
+Require the planning phase to generate a FileSystem Allowlist for every task. Any attempt to modify or delete files outside the approved scope is immediately blocked and escalated.
+
+### 5. Specification Isolation Risks
+
+Complete source code isolation during the Spec phase assumes specifications are self-sufficient. AI-generated specifications may conflict with existing interfaces.
+
+**Recommended Solution:** Code Skeleton Generation.
+
+Automatically generate lightweight project skeletons (e.g., using Tree-sitter, ctags, or TypeScript declarations) and provide public API signatures without implementation details during specification design.
+
+### 6. Plan-Phase Discovery Problem
+
+Who determines impacted files before planning begins?
+
+**Recommended Solution:** Discovery Agent.
+
+Introduce a lightweight discovery phase between Spec and Plan. A read-only search agent analyzes the specification and produces a validated list of files likely to be affected. This list is reviewed by a human or passed directly into planning.
 
 </details>

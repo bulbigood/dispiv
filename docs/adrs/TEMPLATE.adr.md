@@ -6,80 +6,97 @@ related_specs:
 tags: ["messaging", "kafka", "resilience"]
 ---
 
-# ADR-001: Асинхронная верификация Email при регистрации
+# ADR-001: Asynchronous Email Verification During User Registration
 
-> **Краткая суть**: При регистрации пользователя HTTP-запрос не должен блокироваться отправкой письма. Создание пользователя и генерация токена происходят синхронно, а отправка письма делегируется асинхронному консьюмеру через Kafka (паттерн Transactional Outbox).
-
----
-
-## 1. Контекст и Проблема
-
-При синхронной регистрации пользователь нажимает "Зарегистрироваться", сервер создает запись в БД, а затем инициирует SMTP-сессию для отправки письма с токеном верификации.
-
-**Проблема:**
-Время отклика API деградирует из-за внешних факторов. Математически время ответа выглядит так:
-$$ T*{response} = T*{db_commit} + T*{smtp_handshake} + T*{email_send} $$
-
-При нагрузке или проблемах у SMTP-провайдера, $T_{response}$ может достигать 10-15 секунд, что приводит к таймаутам на клиенте.
-
-**Бизнес-требование:** P99 Latency эндпоинта `/api/v1/users/register` не должен превышать $250 \text{ мс}$, независимо от доступности почтового шлюза.
+> **Summary:** User registration requests must not be blocked by email delivery. User creation and verification token generation occur synchronously, while email delivery is delegated to an asynchronous consumer via Kafka using the Transactional Outbox pattern.
 
 ---
 
-## 2. Принятое решение (The Decision)
+## 1. Context and Problem
 
-Мы переходим на Event-Driven архитектуру.
-**Выбранный подход: Transactional Outbox + Kafka + Выделенный микросервис.**
+In the synchronous registration flow, a user clicks "Register", the server creates a database record, and then initiates an SMTP session to send a verification email.
 
-**Архитектурный концепт:**
-Сервис регистрации больше не знает о существовании `EmailGateway`. Вместо этого он генерирует доменное событие (содержащее `userId` и сгенерированный токен), которое гарантированно доставляется в Kafka. _Точные структуры DTO зафиксированы в `TEMPLATE.spec.md`_.
+**Problem:**
 
-**Топология системы:**
+API response time degrades because of external dependencies. Mathematically, response latency can be represented as:
 
-1. `UserRegistrationService` пишет сущность `User` и запись в таблицу `outbox_events` **в одной транзакции** PostgreSQL.
-2. Процесс-коллектор (Debezium) стримит изменения из `outbox_events` в Kafka топик.
-3. Микросервис `NotificationWorker` читает топик, рендерит HTML шаблон и асинхронно вызывает HTTP API почтового провайдера.
+$$
+T_{response} = T_{db_commit} + T_{smtp_handshake} + T_{email_send}
+$$
+
+Under load or during SMTP provider outages, $T_{response}$ may reach 10–15 seconds, causing client-side timeouts.
+
+**Business Requirement:**
+
+P99 latency for the `/api/v1/users/register` endpoint must not exceed $250 \text{ ms}$ regardless of email provider availability.
 
 ---
 
-## 3. Последствия (Consequences)
+## 2. Decision
 
-### Положительные (Преимущества)
+We are adopting an Event-Driven Architecture.
 
-- **Отзывчивость UI**: Время ответа `/register` теперь строго ограничено записью в PostgreSQL ($< 50 \text{ мс}$).
-- **Resilience (Устойчивость)**: Если почтовый провайдер недоступен, регистрация не падает. События безопасно накапливаются в Kafka.
-- **Масштабируемость**: Отправку писем можно масштабировать независимо от основного API регистрации.
+**Selected Approach: Transactional Outbox + Kafka + Dedicated Notification Service**
 
-### Отрицательные (Компромиссы)
+### Architectural Concept
 
-- **Infrastructure Overhead**: Требуется поддержка Debezium и кластера Kafka.
-- **Eventual Consistency**: В редких случаях пользователь может получить письмо с задержкой (1-3 секунды). UI должен отображать экран "Письмо отправлено, проверьте почту" вместо моментального перевода приложения в активный статус.
+The registration service no longer depends directly on `EmailGateway`.
+
+Instead, it produces a domain event containing `userId` and the generated verification token. This event is guaranteed to be delivered to Kafka.
+
+*Exact DTO definitions are specified in `TEMPLATE.spec.md`.*
+
+### System Topology
+
+1. `UserRegistrationService` writes both the `User` entity and an `outbox_events` record within the same PostgreSQL transaction.
+2. A change-data-capture process (Debezium) streams changes from `outbox_events` into a Kafka topic.
+3. The `NotificationWorker` microservice consumes the topic, renders an HTML template, and asynchronously calls the email provider's HTTP API.
+
+---
+
+## 3. Consequences
+
+### Positive
+
+* **Improved Responsiveness:** `/register` latency is now limited to PostgreSQL persistence time only (< 50 ms).
+* **Resilience:** Registration succeeds even if the email provider is unavailable. Events accumulate safely in Kafka.
+* **Scalability:** Email delivery can be scaled independently from the registration API.
+
+### Negative
+
+* **Infrastructure Overhead:** Requires maintaining Kafka and Debezium infrastructure.
+* **Eventual Consistency:** Users may occasionally receive verification emails with a short delay (1–3 seconds). The UI must display a "Verification email sent" screen instead of immediately activating the account.
 
 ---
 
 <details>
-<summary><b>4. Рассмотренные альтернативы (Почему отвергнуты)</b></summary>
+<summary><b>4. Considered Alternatives (Rejected Options)</b></summary>
 
-### ❌ Option A: Синхронная отправка + Thread Pool (`@Async`)
+### ❌ Option A: Synchronous Delivery with Thread Pool (`@Async`)
 
-Создать пул потоков внутри сервиса и отправлять письма в фоновом потоке.
+Use an internal thread pool and send emails in a background thread.
 
-- **Почему отвергнуто**: При перезагрузке пода (crash/deploy) все неотправленные письма в памяти RAM теряются. Сложно реализовать надежный Retry-механизм.
+**Why Rejected**
 
-### ❌ Option B: In-process события (Spring `@EventListener`)
+Unsent emails stored only in memory are lost during pod restarts, crashes, or deployments. Reliable retry mechanisms become significantly more complex.
 
-Публиковать событие внутри JVM и слушать его другим бином.
+### ❌ Option B: In-Process Events (Spring `@EventListener`)
 
-- **Почему отвергнуто**: Не решает проблему потери сообщений при падении процесса. Заставляет монолит брать на себя обязанности по интеграции со сторонними тяжеловесными API.
+Publish events inside the JVM and process them using another bean.
+
+**Why Rejected**
+
+Does not solve message durability problems during process failures. Also increases coupling between the monolith and external heavyweight integrations.
+
 </details>
 
 <details>
-<summary><b>5. Результаты Pre-mortem анализа (Митигация рисков)</b></summary>
+<summary><b>5. Pre-Mortem Analysis Results (Risk Mitigation)</b></summary>
 
-| Что может пойти не так? (Failure Mode)                                  | Вероятность / Влияние | Стратегия митигации                                                                                                                                 |
-| :---------------------------------------------------------------------- | :-------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Потеря события в Kafka**.<br>Брокер недоступен.                       |   Низкая / Критич.    | Гарантируется паттерном Transactional Outbox в БД и настройкой продюсера `acks=all`.                                                                |
-| **Письмо не доставлено (Bounce)**.<br>Email не существует или отклонен. |   Средняя / Высокая   | Консьюмер не должен падать. Hard Bounce переводит `User` в статус `UNDELIVERABLE`. Soft Bounce использует exponential backoff алгоритм для ретраев. |
-| **Пользователь жмет "Отправить снова"**.<br>Возможен спам.              |   Высокая / Средняя   | Новый API `/resend-verification` вводит жесткий Rate Limit: 1 запрос в 60 секунд на пользователя (с опорой на кэш Redis).                           |
+| Failure Mode                                    | Probability / Impact | Mitigation Strategy                                                                                                              |
+| ----------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Kafka event loss due to broker outage           | Low / Critical       | Guaranteed by the Transactional Outbox pattern and producer configuration `acks=all`.                                            |
+| Email delivery failure (bounce)                 | Medium / High        | Consumer must not fail. Hard bounces transition the user to `UNDELIVERABLE`. Soft bounces use exponential backoff retries.       |
+| User repeatedly requests resending verification | High / Medium        | Introduce `/resend-verification` endpoint with a strict rate limit of one request every 60 seconds per user, enforced via Redis. |
 
 </details>

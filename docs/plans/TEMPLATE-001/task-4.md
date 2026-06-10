@@ -11,16 +11,27 @@ on_blocker:
   notify: plan_id: USER-REGISTRATION-PLAN-001
 ---
 
-# Задача: Рефакторинг Сервиса (Переход на Outbox)
+# Task: Migrate UserRegistrationService to the Transactional Outbox Pattern
 
-## Цель
-Перевести `UserRegistrationService` с синхронного вызова `EmailGateway` на паттерн Transactional Outbox. Вместо прямой отправки письма необходимо формировать доменное событие и публиковать его через `OutboxEventPublisher`.
+## Goal
 
-## Бизнес-инварианты (Из Спецификации)
-> **INV-03 (Атомарность Outbox):**
-> Создание записи `User` и события `UserRegisteredEvent` происходит в одной БД-транзакции. Метод должен быть обернут в `@Transactional`.
+Migrate `UserRegistrationService` from a synchronous `EmailGateway` invocation to the Transactional Outbox pattern.
 
-## Критерии приёмки (Acceptance Criteria)
-1. Удалить внедрение зависимости `EmailGateway` из `UserRegistrationService`.
-2. Внедрить зависимость `OutboxEventPublisher`.
-3. В методе `registerUser` заменить прямой вызов отправки письма на формирование `UserRegisteredEvent` и вызов `outboxEventPublisher.publish()`.
+Instead of sending emails directly, the service must create a domain event and publish it through `OutboxEventPublisher`.
+
+## Business Invariants (From the Specification)
+
+> **INV-03 (Outbox Atomicity):**
+>
+> Creation of the `User` record and the corresponding `UserRegisteredEvent` must occur within the same database transaction.
+>
+> The method must be wrapped with `@Transactional`.
+
+## Acceptance Criteria
+
+1. Remove the `EmailGateway` dependency from `UserRegistrationService`.
+2. Inject the `OutboxEventPublisher` dependency.
+3. In the `registerUser` method, replace the direct email-sending call with:
+
+   * creation of a `UserRegisteredEvent`;
+   * invocation of `outboxEventPublisher.publish()`.
