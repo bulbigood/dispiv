@@ -1,6 +1,6 @@
 <p align="right">
   Русский |
-  <a href="./README.en.md">English</a>
+  <a href="./README.md">English</a>
 </p>
 
 # DISPIV Engineering Pipeline
