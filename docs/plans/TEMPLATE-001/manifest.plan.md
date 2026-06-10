@@ -11,9 +11,9 @@ dag:
     depends_on: []
     sandbox_policy:
       allow_read:
-        - src/main/java/com/app/db/UserRegistrationService.java
+        - src/main/java/com/app/db/FlywayService.java
       allow_write:
-        - src/main/java/com/app/db/UserRegistrationService.java
+        - src/main/java/com/app/db/FlywayService.java
   - id: t2_kafka_dtos
     file: task-2.md
     emc_phase: expand
@@ -21,9 +21,9 @@ dag:
     depends_on: []
     sandbox_policy:
       allow_read:
-        - src/main/java/com/app/kafka/KafkaService.java
+        - src/main/java/com/app/kafka/dto/User.java
       allow_write:
-        - src/main/java/com/app/kafka/KafkaService.java
+        - src/main/java/com/app/kafka/dto/User.java
   - id: t3_outbox_publisher
     file: task-3.md
     emc_phase: expand
@@ -48,6 +48,7 @@ dag:
   - id: t5_cleanup
     file: task-5.md
     emc_phase: contract
+    spec_invariants: [INV-03]
     depends_on: [t4_service_refactor]
     sandbox_policy:
       allow_read:
