@@ -1,9 +1,8 @@
 ---
 id: USER-REGISTRATION-ADR-001
 status: Accepted
-spec_refs:
-  - id: USER-REGISTRATION-SPEC
-    path: /docs/specs/TEMPLATE.spec.md
+related_specs:
+  - path: /docs/specs/TEMPLATE.spec.md
 tags: ["messaging", "kafka", "resilience"]
 ---
 

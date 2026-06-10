@@ -120,7 +120,7 @@ graph TD
 
 Каждый Spec-файл содержит:
 
-- **YAML Frontmatter:** статус, связанные зависимости (`dependencies`).
+- **YAML Frontmatter:** статус, связанные зависимости (`related_specs`).
 - **Scope / Out of Scope:** Явные границы модуля.
 - **Data Models & Inter-Service Contracts (Outbound):** Описание не только внутренних DTO, но и клиентских контрактов для внешних вызовов (таймауты, retry-политики).
 - **State Machines / Sequence Diagrams:** Mermaid-диаграммы.

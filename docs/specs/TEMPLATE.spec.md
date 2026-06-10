@@ -1,12 +1,10 @@
 ---
 id: USER-REGISTRATION-SPEC
 status: Active
-idea_refs:
-  - id: USER-REGISTRATION-ADR-001
-    path: /docs/adrs/TEMPLATE.adr.md
-dependencies:
-  - id: EMAIL-GATEWAY
-    path: /docs/specs/EMAIL-GATEWAY.spec.md # Для консьюмера (историческая транзитивность)
+affected_by_adrs:
+  - path: /docs/adrs/TEMPLATE.adr.md
+related_specs:
+  - path: /docs/specs/EMAIL-GATEWAY.spec.md
 tags: ["auth", "core"]
 ---
 

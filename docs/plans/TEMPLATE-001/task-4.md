@@ -1,5 +1,8 @@
 ---
 task_id: t4_service_refactor
+manifest_path: ./manifest.plan.md
+requires:
+  - t3_outbox_publisher
 ---
 
 # Задача: Service Refactor (Phase: Migrate)

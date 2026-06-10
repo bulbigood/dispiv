@@ -1,9 +1,8 @@
 ---
 id: USER-REGISTRATION-PLAN-001
 strategy: expand-migrate-contract
-specs:
-  - id: USER-REGISTRATION-SPEC
-    path: /docs/specs/TEMPLATE.spec.md
+affected_by_specs:
+  - path: /docs/specs/TEMPLATE.spec.md
 dag:
   - id: t1_db_schema
     file: task-1.md
